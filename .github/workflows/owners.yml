@@ -1,0 +1,23 @@
+name: owners
+
+# Stand-in for app-foundry's owner check: fails on the PR's own run, passes on a review run, so a
+# PR turns mergeable only if GitHub takes the newer result of a required check with one name.
+on:
+  pull_request:
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: owners-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  owners:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "event=$GITHUB_EVENT_NAME sha=$GITHUB_SHA ref=$GITHUB_REF"
+          [ "$GITHUB_EVENT_NAME" = pull_request_review ]
