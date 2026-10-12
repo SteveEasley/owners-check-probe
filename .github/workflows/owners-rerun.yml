@@ -1,0 +1,34 @@
+name: owners-rerun
+
+# The plan's fallback: a review re-runs the PR's own owners run, so its new result lands in the
+# same check suite as the one it replaces.
+on:
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  actions: write
+
+concurrency:
+  group: owners-rerun-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  rerun:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          for _ in $(seq 60); do
+            run=$(gh run list --repo "$REPO" --workflow owners.yml --event pull_request \
+              --commit "$SHA" --limit 1 --json databaseId,status --jq '.[0] // empty')
+            [ -n "$run" ] && [ "$(jq -r .status <<<"$run")" = completed ] && break
+            sleep 10
+          done
+          id=$(jq -r .databaseId <<<"$run")
+          echo "re-running $id"
+          gh run rerun "$id" --repo "$REPO"
