@@ -1,0 +1,27 @@
+name: bot-pr
+
+# Opens a PR to owned/ as github-actions[bot], so its author is not the path's code owner.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git switch -c probe-bot-owned
+          printf 'owned\nbot probe\n' > owned/file.txt
+          git commit -qam "Probe a bot's change to owned/"
+          git push -q origin probe-bot-owned
+          gh pr create --base main --head probe-bot-owned --title "Probe: bot changes owned path" \
+            --body "Phase 0 probe: code owner review at a count of 0, author not the code owner."
